@@ -1,0 +1,3 @@
+[submodule "src-tauri/ark_calculator/ArknightsGameData"]
+	path = src-tauri/ark_calculator/ArknightsGameData
+	url = https://github.com/Kengxxiao/ArknightsGameData.git
