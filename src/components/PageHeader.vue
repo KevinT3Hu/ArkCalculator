@@ -54,12 +54,12 @@ function handleDeleteProfile() {
   console.log("handleDeleteProfile");
   profileManager.deleteProfile(selected.value);
   const list = profileOptions.filter((option) => option.value != selected.value);
+  if (list.length == 0) {
+    profileManager.createProfile("Default");
+    list.push({ label: "Default", value: "Default" });
+  }
   profileOptions.splice(0, profileOptions.length, ...list);
   setSelectedValue(profileOptions[0].value);
-  useNotification().success({
-    title: 'Success',
-    content: 'Profile deleted',
-  });
 }
 </script>
 
