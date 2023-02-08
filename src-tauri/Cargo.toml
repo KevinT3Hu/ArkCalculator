@@ -3,8 +3,6 @@ name = "ArkCalculator"
 version = "0.0.4"
 description = "ArkCalculator is an application built with tauri+vue.js that aims to easily calculate the amount of resources needed to upgrade your operators in Arknights. "
 authors = ["kht"]
-license = ""
-repository = ""
 edition = "2021"
 rust-version = "1.57"
 
