@@ -8,6 +8,7 @@ mod plugins;
 use std::{collections::HashMap, sync::Mutex};
 
 use ark_calculator::resource_loader::ResourceLoader;
+use plugins::{calculate_skill_cost_internal, combine_cost};
 
 use crate::plugins::{calculate_cost_internal, OperatorInfo, OperatorTarget};
 
@@ -28,9 +29,14 @@ fn get_operator_list(app_state: tauri::State<AppState>) -> Vec<OperatorInfo> {
     let resource_loader = app_state.resource_loader.lock().unwrap();
     let resource_loader = resource_loader.as_ref().unwrap();
     resource_loader.get_operator_list().unwrap().iter().map(|(_,operator)|{
+        let skill_count = match &operator.skills {
+            None => 0,
+            Some(skills) => skills.len() as u8
+        };
         OperatorInfo{
             name:operator.name.clone(),
-            rarity:operator.rarity
+            rarity:operator.rarity,
+            skill_count
         }
     }).collect()
 }
@@ -39,22 +45,30 @@ fn get_operator_list(app_state: tauri::State<AppState>) -> Vec<OperatorInfo> {
 fn calculate_cost(app_state: tauri::State<AppState>, target:OperatorTarget) -> HashMap<String, u32> {
     let resource_loader = app_state.resource_loader.lock().unwrap();
     let resource_loader = resource_loader.as_ref().unwrap();
-    calculate_cost_internal(&resource_loader, target)
+    let level_cost = calculate_cost_internal(&resource_loader, &target);
+    let skills_cost = calculate_skill_cost_internal(&resource_loader, &target.name, &target.skill_targets);
+    combine_cost(&level_cost, &skills_cost)
 }
 
 #[tauri::command]
-fn calculate_total_cost(app_state: tauri::State<AppState>, targets:Vec<OperatorTarget>) -> HashMap<String, u32> {
+fn calculate_total_cost(app_state: tauri::State<AppState>, targets:Vec<OperatorTarget>,use_lv:bool,use_skill:bool) -> HashMap<String, u32> {
     let mut total_cost = HashMap::new();
     let resource_loader = app_state.resource_loader.lock().unwrap();
     let resource_loader = resource_loader.as_ref().unwrap();
     println!("{:?}",targets);
     for target in targets{
-        let cost = calculate_cost_internal(&resource_loader, target);
-        for (key,value) in cost{
-            println!("{}:{}",key,value);
-            let total = total_cost.entry(key).or_insert(0);
-            *total += value;
-        }
+        let lv_cost = if use_lv {
+            calculate_cost_internal(&resource_loader, &target)
+        } else {
+            HashMap::new()
+        };
+        let skills_cost = if use_skill {
+            calculate_skill_cost_internal(&resource_loader, &target.name, &target.skill_targets)
+        } else {
+            HashMap::new()
+        };
+        let cost = combine_cost(&lv_cost, &skills_cost);
+        total_cost = combine_cost(&total_cost, &cost);
     }
     total_cost
 }

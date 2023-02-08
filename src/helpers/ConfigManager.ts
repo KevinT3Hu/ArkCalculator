@@ -62,4 +62,8 @@ export class ConfigManager{
     }
 }
 
-export const DEFAULT_PROFILE="defProfile"
+export class Configs{
+    static DEFAULT_PROFILE:string = "defProfile";
+    static USE_LV_FEAT:string = "useLvFeat";
+    static USE_SKILL_FEAT:string = "useSkillFeat";
+}
