@@ -3,7 +3,7 @@ import { DataTableColumn, DataTableColumns, NButton, NInput, NInputNumber } from
 import { TableBaseColumn } from 'naive-ui/es/data-table/src/interface';
 import { h, onMounted, onUpdated, reactive, ref, watch, watchEffect } from 'vue';
 import AddTask from '../assets/AddTask.vue';
-import { getMaxElite, getMaxLevel } from '../helpers/OperatorHelper';
+import { getMaxElite, getMaxLevel, getRarityColor } from '../helpers/OperatorHelper';
 import { ProfileManager } from '../helpers/ProfileManager';
 import { ResourceLoader } from '../helpers/ResourceLoader';
 import { I18n } from '../i18n/strings';
@@ -52,10 +52,16 @@ const newOperatorName = ref<string | undefined>(undefined);
 
 const operatorList = await ResourceLoader.getOperatorList();
 
-const newOperatorOptions = ref(operatorList.map((operator) => ({ label: operator.name, value: operator.name })))
+const newOperatorOptions = ref(operatorList.map((operator) => ({ 
+    label: operator.name, 
+    value: operator.name,
+    style: {
+        color: getRarityColor(operator.rarity)
+    }
+})))
 
 watch(newOperatorName, (value) => {
-    newOperatorOptions.value = operatorList.filter((operator) => operator.name.includes(value ?? '')).map((operator) => ({ label: operator.name, value: operator.name }))
+    newOperatorOptions.value = operatorList.filter((operator) => operator.name.includes(value ?? '')).map((operator) => ({ label: operator.name, value: operator.name, style: { color: getRarityColor(operator.rarity) } }))
 })
 
 const skillColumnsChilden = [];
@@ -221,7 +227,12 @@ const columns: DataTableColumns<OperatorTarget> = reactive(
             title: i18n.getStringDef("table_head_name"),
             key: 'name',
             render(row) {
-                return h('span', row.name)
+                //render with color
+                return h('span', {
+                    style: {
+                        color: getRarityColor(row.rarity)
+                    }
+                }, row.name)
             }
         },
         {
@@ -287,7 +298,7 @@ const result = ref<{ name: string, count: number }[]>([])
 const showAddIcon = ref(false);
 
 function handleSearch(query: string) {
-    newOperatorOptions.value = operatorList.filter((operator) => operator.name.includes(query)).map((operator) => ({ label: operator.name, value: operator.name }))
+    newOperatorOptions.value = operatorList.filter((operator) => operator.name.includes(query)).map((operator) => ({ label: operator.name, value: operator.name, style: { color: getRarityColor(operator.rarity) } }))
     newOperatorOptions.value = newOperatorOptions.value.filter((operator) => !data.find((target) => target.name === operator.value))
 }
 
