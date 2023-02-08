@@ -7,8 +7,12 @@ export class ResourceLoader{
         return invoke("get_operator_list")
     }
 
-    public static async calculateProfileCost(operatorList:OperatorTarget[]):Promise<Map<string,number>>{
-        const costMap:Map<string,number> = await invoke("calculate_total_cost",{targets:operatorList});
+    public static async calculateProfileCost(operatorList:OperatorTarget[],useLv:boolean=true,useSkill:boolean=true):Promise<Map<string,number>>{
+        const costMap:Map<string,number> = await invoke("calculate_total_cost",{
+            targets:operatorList,
+            useLv:useLv,
+            useSkill:useSkill
+        });
         console.log(costMap);
         const costMapWithName:Map<string,number> = new Map();
         for(const [id,count] of Object.entries(costMap)){

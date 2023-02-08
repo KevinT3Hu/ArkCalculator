@@ -67,7 +67,7 @@ fn handle_material_json(out_dir: &str) {
     let material_json = material_json.as_object().unwrap();
     let material_json = material_json.get("items").unwrap().as_object().unwrap();
     let mut material_json = material_json.iter().filter(|(id, _)| {
-        ((id.len() == 5 && (id.starts_with("30")||id.starts_with("31"))) || (id.len() == 4 && id.starts_with("32"))) || id.as_str() == "4001"
+        ((id.len() == 5 && (id.starts_with("30")||id.starts_with("31"))) || (id.len() == 4 && id.starts_with("32"))) || id.as_str() == "4001" || id.starts_with("330")
     }).map(|(id, item)| {
         let name = item.get("name").unwrap().as_str().unwrap();
         json!(
