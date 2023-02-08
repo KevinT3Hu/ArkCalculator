@@ -355,7 +355,13 @@ function updateData(update: () => void) {
 <template>
 
     <n-data-table class="table noselect" :columns="columns" :data="data"
-        :max-height="0.4 * (windowHeight - separatorHeight - bottomBarHeight - headerHeight)" />
+        :max-height="0.4 * (windowHeight - separatorHeight - bottomBarHeight - headerHeight)">
+        <template #empty>
+            <span class="empty">
+                {{ i18n.getStringDef("table_empty") }}
+            </span>
+        </template>
+    </n-data-table>
     <n-divider id="separator" title-placement="left" class="noselect">
         {{ i18n.getStringDef("result_title") }}
     </n-divider>
@@ -391,6 +397,11 @@ function updateData(update: () => void) {
 <style scoped>
 .result-item {
     width: 50%;
+}
+
+.empty {
+    font-size: 20px;
+    color: gray;
 }
 
 .count {
