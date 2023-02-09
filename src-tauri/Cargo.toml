@@ -15,6 +15,7 @@ tauri-build = { version = "1.2", features = [] }
 ark_calculator = { path = "./ark_calculator" }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
+ureq = { version="2.6.2", features = ["json"] }
 tauri = { version = "1.2", features = ["fs-all", "path-all", "shell-open", "window-set-title"] }
 
 [features]

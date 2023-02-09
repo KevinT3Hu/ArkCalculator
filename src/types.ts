@@ -19,3 +19,13 @@ export interface OperatorInfo{
     rarity:number,
     skill_count:number,//only skills with elite levels
 }
+
+export interface Stage{
+    name:string,
+    count:number,
+}
+
+export interface Material{
+    id:string,
+    name:string,
+}
