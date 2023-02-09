@@ -3,10 +3,8 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - '.github/**'
-      - 'LICENSE'
-      - 'README.md'
+    paths:
+      - 'VERSION'
 
 jobs:
   build-tauri:
