@@ -26,8 +26,17 @@ function updateFeatures(){
 </script>
 
 <template>
-    <div class="container column">
+    <div class="app-container column">
       <PageHeader @update-profile="updateProfile" @update-use-lv-feature="updateFeatures" @update-use-skill-feature="updateFeatures" :def-profile="selectedProfile"/>
       <MainTable :profile="selectedProfile" :use-lv-feature="useLvFeature" :use-skill-feature="useSkillFeature"/>
     </div>
 </template>
+
+<style scoped>
+
+.app-container {
+  height: 100vh;
+  width: 100vw;
+}
+
+</style>

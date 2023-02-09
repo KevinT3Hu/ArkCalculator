@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import { DataTableColumn, DataTableColumns, NButton, NInput, NInputNumber } from 'naive-ui';
-import { TableBaseColumn } from 'naive-ui/es/data-table/src/interface';
-import { h, onMounted, onUpdated, reactive, ref, watch, watchEffect } from 'vue';
+import { DataTableColumn, DataTableColumns, NButton, NInputNumber } from 'naive-ui';
+import { h, onMounted, reactive, ref, watch } from 'vue';
 import AddTask from '../assets/AddTask.vue';
-import { getMaxElite, getMaxLevel } from '../helpers/OperatorHelper';
+import { getMaxElite, getMaxLevel, getRarityColor } from '../helpers/OperatorHelper';
 import { ProfileManager } from '../helpers/ProfileManager';
 import { ResourceLoader } from '../helpers/ResourceLoader';
 import { I18n } from '../i18n/strings';
-import { OperatorTarget, SkillTarget } from '../types';
+import { OperatorTarget, SkillTarget, Stage, Material } from '../types';
 
 const i18n = I18n.getInstance();
 
@@ -16,6 +15,8 @@ const props = defineProps<{
     useLvFeature: boolean,
     useSkillFeature: boolean,
 }>()
+
+// profile related code
 
 console.log(`loading profile ${props.profile}`)
 
@@ -33,30 +34,55 @@ watch(
     }
 )
 
+// end of profile related code
+
+// window size related code
+
 const windowHeight = ref(document.documentElement.clientHeight);
 
-const bottomBarHeight = 100;
+const bottomBarHeight = 60;
 
-const separatorHeight = document.getElementById('separator')?.clientHeight ?? 0 + 48;
+const separatorHeight = (document.getElementById('separator')?.clientHeight ?? 0) + 48;
 
 const headerHeight = ref(document.getElementById('header')?.clientHeight ?? 0);
 
+const profileTableHeight = ref(document.getElementById('profile-table')?.clientHeight ?? 0);
+
 onMounted(() => {
     window.addEventListener('resize', () => {
+        console.log('resize', document.documentElement.clientHeight)
+        console.log('resize', document.getElementById('header')?.clientHeight ?? 0)
+        console.log('resize', document.getElementById('profile-table')?.clientHeight ?? 0)
+        console.log('resize', document.getElementById('bottom-bar')?.clientHeight ?? 0)
         windowHeight.value = document.documentElement.clientHeight;
         headerHeight.value = document.getElementById('header')?.clientHeight ?? 0;
+        profileTableHeight.value = document.getElementById('profile-table')?.clientHeight ?? 0;
     })
 })
+
+// end of window size related code
+
+// new operator related code
 
 const newOperatorName = ref<string | undefined>(undefined);
 
 const operatorList = await ResourceLoader.getOperatorList();
 
-const newOperatorOptions = ref(operatorList.map((operator) => ({ label: operator.name, value: operator.name })))
+const newOperatorOptions = ref(operatorList.map((operator) => ({
+    label: operator.name,
+    value: operator.name,
+    style: {
+        color: getRarityColor(operator.rarity)
+    }
+})))
 
 watch(newOperatorName, (value) => {
-    newOperatorOptions.value = operatorList.filter((operator) => operator.name.includes(value ?? '')).map((operator) => ({ label: operator.name, value: operator.name }))
+    newOperatorOptions.value = operatorList.filter((operator) => operator.name.includes(value ?? '')).map((operator) => ({ label: operator.name, value: operator.name, style: { color: getRarityColor(operator.rarity) } }))
 })
+
+// end of new operator related code
+
+const plannedStages: Stage[] = reactive([]);
 
 const skillColumnsChilden = [];
 
@@ -221,7 +247,12 @@ const columns: DataTableColumns<OperatorTarget> = reactive(
             title: i18n.getStringDef("table_head_name"),
             key: 'name',
             render(row) {
-                return h('span', row.name)
+                //render with color
+                return h('span', {
+                    style: {
+                        color: getRarityColor(row.rarity)
+                    }
+                }, row.name)
             }
         },
         {
@@ -256,7 +287,7 @@ watch(
             columns.splice(2, 0, lvColumns)
         } else {
             const index = columns.indexOf(lvColumns)
-            if(index>=0){
+            if (index >= 0) {
                 columns.splice(index, 1)
             }
         }
@@ -274,7 +305,7 @@ watch(
             columns.splice(index, 0, skillColumns)
         } else {
             const index = columns.indexOf(skillColumns)
-            if(index>=0){
+            if (index >= 0) {
                 columns.splice(index, 1)
             }
         }
@@ -282,24 +313,21 @@ watch(
     { immediate: true }
 )
 
-const result = ref<{ name: string, count: number }[]>([])
+const result = reactive<{material:Material,count:number}[]>([])
+
+const isPlanLoading = ref(false);
 
 const showAddIcon = ref(false);
 
 function handleSearch(query: string) {
-    newOperatorOptions.value = operatorList.filter((operator) => operator.name.includes(query)).map((operator) => ({ label: operator.name, value: operator.name }))
+    newOperatorOptions.value = operatorList.filter((operator) => operator.name.includes(query)).map((operator) => ({ label: operator.name, value: operator.name, style: { color: getRarityColor(operator.rarity) } }))
     newOperatorOptions.value = newOperatorOptions.value.filter((operator) => !data.find((target) => target.name === operator.value))
 }
 
 function calculateProfile() {
     console.log(profile.value)
-    ResourceLoader.calculateProfileCost(data,props.useLvFeature,props.useSkillFeature).then((cost) => {
-        result.value = [];
-        console.log(cost)
-        console.log(Object.entries(cost))
-        for (const [name, count] of cost.entries()) {
-            result.value.push({ name, count })
-        }
+    ResourceLoader.calculateProfileCost(data, props.useLvFeature, props.useSkillFeature).then((cost) => {
+        result.splice(0, result.length,...Array.from(cost.entries()).map(([material, count]) => ({ material, count })));
     })
 }
 
@@ -336,30 +364,73 @@ function addTargetToProfile() {
 function updateData(update: () => void) {
     update();
     profileManager.saveProfile(profile.value, data);
+    profileTableHeight.value = document.getElementById("profile-table")!.clientHeight;
     calculateProfile();
 }
 
+function getPlan() {
+    isPlanLoading.value = true;
+
+    console.log("get plan")
+    const required = new Map<string, number>();
+    result.forEach((item) => {
+        required.set(item.material.id, item.count);
+    })
+    ResourceLoader.getPlannerPlan(required).then((plan) => {
+        isPlanLoading.value = false;
+        console.log(plan);
+        plan.forEach((count, stage) => {
+            plannedStages.push({
+                name: stage,
+                count: count
+            });
+        })
+    }).catch((e)=>{
+        isPlanLoading.value = false;
+        console.log(e)
+    })
+}
 </script>
 
 <template>
 
-    <n-data-table class="table noselect" :columns="columns" :data="data"
-        :max-height="0.4 * (windowHeight - separatorHeight - bottomBarHeight - headerHeight)" />
+<n-scrollbar class="main">
+    <div>
+        <n-data-table id="profile-table" class="table noselect" :columns="columns" :data="data"
+        :max-height="300">
+        <template #empty>
+            <span class="empty">
+                {{ i18n.getStringDef("table_empty") }}
+            </span>
+        </template>
+    </n-data-table>
     <n-divider id="separator" title-placement="left" class="noselect">
         {{ i18n.getStringDef("result_title") }}
     </n-divider>
-    <div class="column result">
-        <n-scrollbar
-            :style="`max-height: ${0.5 * (windowHeight - separatorHeight - bottomBarHeight - headerHeight)}px;`">
-            <n-list hoverable>
-                <n-list-item class="result-item" v-for="item in result" :key="item.name">
-                    <span>{{ item.name }}</span>
-                    <span class="count">{{ item.count }}</span>
-                </n-list-item>
-            </n-list>
-        </n-scrollbar>
+    <div class="row">
+        <div class="sub-result">
+                <n-list hoverable>
+                    <n-list-item class="result-item" v-for="item in result" :key="item.material.id">
+                        <span>{{ item.material.name }}</span>
+                        <span class="count">{{ item.count }}</span>
+                    </n-list-item>
+                </n-list>
+        </div>
+        <div class="sub-result">
+            <n-skeleton text class="loading" v-if="isPlanLoading" :repeat="6" :style="`max-height: ${0.5 * (windowHeight - separatorHeight - bottomBarHeight - headerHeight)}px;`" />
+                <n-list v-else hoverable>
+                    <n-list-item class="result-item" v-for="item in plannedStages" :key="item.name">
+                        <span>{{ item.name }}</span>
+                        <span class="count">{{ item.count }}</span>
+                    </n-list-item>
+                </n-list>
+        </div>
     </div>
-    <div class="row bottom-bar">
+    </div>
+    
+</n-scrollbar>
+
+    <div id="bottom-bar" class="row bottom-bar">
         <n-select class="new-oper-select" v-model:value="newOperatorName" filterable
             :placeholder="i18n.getStringDef('select_hint')" clearable :options="newOperatorOptions"
             @search="handleSearch" @update:value="handleNewOperatorValueChange" />
@@ -371,15 +442,22 @@ function updateData(update: () => void) {
             </template>
             <span>{{ i18n.getStringDef("select_add") }}</span>
         </n-tooltip>
-        <n-button class="btn-calculate" type="primary" @click="calculateProfile">{{
-            i18n.getStringDef("btn_calculate")
+        <n-button class="btn-calculate" @click="getPlan">{{
+            i18n.getStringDef("btn_plan")
         }}</n-button>
     </div>
 </template>
 
 <style scoped>
-.result-item {
-    width: 50%;
+.sub-result {
+    margin: 1%;
+    width: 50vw;
+    height: 100%;
+}
+
+.empty {
+    font-size: 20px;
+    color: gray;
 }
 
 .count {
@@ -402,10 +480,11 @@ function updateData(update: () => void) {
 }
 
 .bottom-bar {
-    position: absolute;
+    position: fixed;
     background-color: var(--bar-background-color);
     width: 100%;
-    height: 60px;
+    height: 55px;
     bottom: 0;
+    margin-bottom: 0px;
 }
 </style>

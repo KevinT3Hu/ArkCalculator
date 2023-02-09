@@ -52,3 +52,12 @@ export function getMaxLevel(rarity:number,elite:number):number{
 
     throw new Error("Invalid rarity or elite"+rarity+" "+elite);
 }
+
+export function getRarityColor(rarity:number){
+    switch(rarity){
+        case 3:return "#A231FF";
+        case 4:return "#CC7A00";
+        case 5:return "#EE5700";
+        default:return "#000000";
+    }
+}

@@ -161,6 +161,7 @@ function handleMenuSelect(key: string|number){
 <style scoped>
 
 .page-header {
+  height: 60px;
   background-color: var(--bar-background-color);
   position:sticky;
   top:0;

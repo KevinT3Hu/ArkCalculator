@@ -8,7 +8,8 @@ mod plugins;
 use std::{collections::HashMap, sync::Mutex};
 
 use ark_calculator::resource_loader::ResourceLoader;
-use plugins::{calculate_skill_cost_internal, combine_cost};
+use plugins::{calculate_skill_cost_internal, combine_cost, Stage};
+use serde_json::Value;
 
 use crate::plugins::{calculate_cost_internal, OperatorInfo, OperatorTarget};
 
@@ -80,6 +81,20 @@ fn get_material_name(app_state: tauri::State<AppState>, material_id:&str) -> Str
     resource_loader.get_material_name(material_id).unwrap()
 }
 
+// passing the param as a string and deserializing it is a workaround for the bug that HashMao would be empty when passed as a param
+// see https://github.com/tauri-apps/tauri/issues/6078
+#[tauri::command]
+fn get_planner_plan(required:&str) -> Result<Vec<Stage>,String>{
+    println!("required:{}",required);
+    let required:Value = serde_json::from_str(required).unwrap();
+    let required = required.as_array().unwrap();
+    let required = required.iter().map(|value|{
+        let value = value.as_array().unwrap();
+        (value[0].as_str().unwrap().to_owned(),value[1].as_u64().unwrap() as u32)
+    }).collect::<HashMap<String,u32>>();
+    plugins::get_planner_plan(&required).map_err(|e|{e.to_string()})
+}
+
 fn main() {
     let app_state = AppState{
         resource_loader:Mutex::new(None)
@@ -87,7 +102,7 @@ fn main() {
 
     tauri::Builder::default()
         .manage(app_state)
-        .invoke_handler(tauri::generate_handler![get_operator_list,calculate_cost,calculate_total_cost,init,get_material_name])
+        .invoke_handler(tauri::generate_handler![get_operator_list,calculate_cost,calculate_total_cost,init,get_material_name,get_planner_plan])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

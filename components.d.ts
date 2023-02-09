@@ -18,6 +18,7 @@ declare module '@vue/runtime-core' {
     NListItem: typeof import('naive-ui')['NListItem']
     NScrollbar: typeof import('naive-ui')['NScrollbar']
     NSelect: typeof import('naive-ui')['NSelect']
+    NSkeleton: typeof import('naive-ui')['NSkeleton']
     NTooltip: typeof import('naive-ui')['NTooltip']
     PageHeader: typeof import('./src/components/PageHeader.vue')['default']
   }

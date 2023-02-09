@@ -7,6 +7,9 @@
   color: #0f0f0f;
   background-color: #ffffff;
 
+  margin: 0;
+  padding: 0;
+
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -14,6 +17,10 @@
   -webkit-text-size-adjust: 100%;
 
   --bar-background-color:#efefef
+}
+
+.main{
+  margin-bottom: 60px;
 }
 
 .row {
@@ -43,4 +50,8 @@
   -ms-user-select: none; /* Internet Explorer/Edge */
   user-select: none; /* Non-prefixed version, currently
                         supported by Chrome, Edge, Opera and Firefox */
+}
+
+.hide {
+  display: none;
 }
