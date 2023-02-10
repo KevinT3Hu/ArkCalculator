@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DropdownOption, NCheckbox, useNotification } from 'naive-ui';
+import { DropdownOption, NCheckbox, NDropdown, NSelect, NTooltip, useNotification } from 'naive-ui';
 import { h, reactive, ref, watch } from 'vue'
 import AddIcon from '../assets/AddIcon.vue';
 import DoneIcon from '../assets/DoneIcon.vue';
@@ -107,35 +107,35 @@ function handleMenuSelect(key: string|number){
 
   <div id="header" class="row page-header noselect">
     <h2 class="title">{{ i18n.getStringDef("head") }}</h2>
-    <n-select class="profile-select" v-model:value="selectedProfile" :options="profileOptions"
+    <NSelect class="profile-select" v-model:value="selectedProfile" :options="profileOptions"
       @update:value="(value: string) => $emit('updateProfile',value)" :default-value="selectedProfile" />
-    <n-tooltip trigger="hover" placement="bottom">
+    <NTooltip trigger="hover" placement="bottom">
       <template #trigger>
-        <n-button text class="icon-btn" @click="handleDeleteProfile">
+        <NButton text class="icon-btn" @click="handleDeleteProfile">
           <DeleteIcon />
-        </n-button>
+        </NButton>
       </template>
       <span>{{ i18n.getStringDef("tooltip_delete_profile") }}</span>
-    </n-tooltip>
-    <n-tooltip trigger="hover" placement="bottom">
+    </NTooltip>
+    <NTooltip trigger="hover" placement="bottom">
       <template #trigger>
-        <n-button text class="icon-btn" @click="createNewOpen = !createNewOpen">
+        <NButton text class="icon-btn" @click="createNewOpen = !createNewOpen">
           <AddIcon />
-        </n-button>
+        </NButton>
       </template>
       <span>{{ i18n.getStringDef("tooltip_add_profile") }}</span>
-    </n-tooltip>
+    </NTooltip>
     <div class="row" :class="{ 'hidden': !createNewOpen }">
       <n-input v-model:value="newProfileName" placeholder="Profile Name" />
-      <n-button text class="icon-btn" @click="handleNewProfile">
+      <NButton text class="icon-btn" @click="handleNewProfile">
         <DoneIcon />
-      </n-button>
+      </NButton>
     </div>
-    <n-dropdown trigger="hover" :options="menuOptions" @select="handleMenuSelect" placement="bottom-start">
-        <n-button text class="icon-btn menu-icon">
+    <NDropdown trigger="hover" :options="menuOptions" @select="handleMenuSelect" placement="bottom-start">
+        <NButton text class="icon-btn menu-icon">
           <SettingsIcon />
-        </n-button>
-    </n-dropdown>
+        </NButton>
+    </NDropdown>
   </div>
 
 </template>

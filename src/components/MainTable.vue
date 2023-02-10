@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DataTableColumn, DataTableColumns, NButton, NInputNumber } from 'naive-ui';
+import { DataTableColumn, DataTableColumns, NButton, NDataTable, NDivider, NInputNumber, NList, NListItem, NScrollbar, NSelect, NSkeleton, NTooltip } from 'naive-ui';
 import { h, onMounted, reactive, ref, watch } from 'vue';
 import AddTask from '../assets/AddTask.vue';
 import { getMaxElite, getMaxLevel, getRarityColor } from '../helpers/OperatorHelper';
@@ -391,57 +391,57 @@ function getPlan() {
 
 <template>
 
-<n-scrollbar class="main">
+<NScrollbar class="main">
     <div>
-        <n-data-table id="profile-table" class="table noselect" :columns="columns" :data="data"
+        <NDataTable id="profile-table" class="table noselect" :columns="columns" :data="data"
         :max-height="300">
         <template #empty>
             <span class="empty">
                 {{ i18n.getStringDef("table_empty") }}
             </span>
         </template>
-    </n-data-table>
-    <n-divider id="separator" title-placement="left" class="noselect">
+        </NDataTable>
+    <NDivider id="separator" title-placement="left" class="noselect">
         {{ i18n.getStringDef("result_title") }}
-    </n-divider>
+    </NDivider>
     <div class="row">
         <div class="sub-result">
-                <n-list hoverable>
-                    <n-list-item class="result-item" v-for="item in result" :key="item.material.id">
+                <NList hoverable>
+                    <NListItem class="result-item" v-for="item in result" :key="item.material.id">
                         <span>{{ item.material.name }}</span>
                         <span class="count">{{ item.count }}</span>
-                    </n-list-item>
-                </n-list>
+                    </NListItem>
+                </NList>
         </div>
         <div class="sub-result">
-            <n-skeleton text class="loading" v-if="isPlanLoading" :repeat="6" :style="`max-height: ${0.5 * (windowHeight - separatorHeight - bottomBarHeight - headerHeight)}px;`" />
-                <n-list v-else hoverable>
-                    <n-list-item class="result-item" v-for="item in plannedStages" :key="item.name">
+            <NSkeleton text class="loading" v-if="isPlanLoading" :repeat="6" :style="`max-height: ${0.5 * (windowHeight - separatorHeight - bottomBarHeight - headerHeight)}px;`" />
+                <NList v-else hoverable>
+                    <NListItem class="result-item" v-for="item in plannedStages" :key="item.name">
                         <span>{{ item.name }}</span>
                         <span class="count">{{ item.count }}</span>
-                    </n-list-item>
-                </n-list>
+                    </NListItem>
+                </NList>
         </div>
     </div>
     </div>
     
-</n-scrollbar>
+</NScrollbar>
 
     <div id="bottom-bar" class="row bottom-bar">
-        <n-select class="new-oper-select" v-model:value="newOperatorName" filterable
+        <NSelect class="new-oper-select" v-model:value="newOperatorName" filterable
             :placeholder="i18n.getStringDef('select_hint')" clearable :options="newOperatorOptions"
             @search="handleSearch" @update:value="handleNewOperatorValueChange" />
-        <n-tooltip trigger="hover" text v-if="showAddIcon" placement="top">
+        <NTooltip trigger="hover" text v-if="showAddIcon" placement="top">
             <template #trigger>
-                <n-button class="add-to-profile" @click="addTargetToProfile">
+                <NButton class="add-to-profile" @click="addTargetToProfile">
                     <AddTask />
-                </n-button>
+                </NButton>
             </template>
             <span>{{ i18n.getStringDef("select_add") }}</span>
-        </n-tooltip>
-        <n-button class="btn-calculate" @click="getPlan">{{
+        </NTooltip>
+        <NButton class="btn-calculate" @click="getPlan">{{
             i18n.getStringDef("btn_plan")
-        }}</n-button>
+        }}</NButton>
     </div>
 </template>
 
