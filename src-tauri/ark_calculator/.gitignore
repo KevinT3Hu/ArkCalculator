@@ -1,0 +1,6 @@
+# Cargo targets
+/target/
+/Cargo.lock
+
+# IDE directories
+.idea/
