@@ -18,9 +18,6 @@
 
 </div>
 
-
-
-
 ## Description
 
 ArkCalculator is an application built with tauri+vue.js that aims to easily calculate the amount of resources needed to upgrade your operators in Arknights.
@@ -54,6 +51,7 @@ ArkCalculator is licensed under the AGPL-3.0 License. See [LICENSE](./LICENSE) f
 - Frontend Framework: [Vue.js](https://vuejs.org)
 - Frontend UI Library: [naive-ui](https://www.naiveui.com)
 - Frontend Icons: [xicons](https://xicons.org)
+- Frontend State Management: [Pinia](https://pinia.esm.dev)
 - Frontend Build Tool: [Vite](https://vitejs.dev)
 - Frontend Font: [vfonts](https://www.npmjs.com/package/vfonts)
 - Json Parser: [serde](https://serde.rs/)
