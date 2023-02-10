@@ -4,6 +4,7 @@ import SuspensePage from "./SuspensePage.vue";
 import { invoke } from "@tauri-apps/api";
 import { I18n } from "./i18n/strings";
 import { appWindow } from "@tauri-apps/api/window";
+import { createPinia } from "pinia";
 
 invoke("init").then(()=>
     console.log("Tauri init success")
@@ -27,4 +28,8 @@ if (process.env.NODE_ENV === "production") {
     });
 }
 const app = createApp(SuspensePage);
+
+const pinia = createPinia();
+app.use(pinia);
+
 app.mount("#app");

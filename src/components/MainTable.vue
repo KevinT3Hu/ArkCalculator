@@ -6,35 +6,32 @@ import { getMaxElite, getMaxLevel, getRarityColor } from '../helpers/OperatorHel
 import { ProfileManager } from '../helpers/ProfileManager';
 import { ResourceLoader } from '../helpers/ResourceLoader';
 import { I18n } from '../i18n/strings';
+import { useFeatStore, useProfileStore } from '../store';
 import { OperatorTarget, SkillTarget, Stage, Material } from '../types';
 
 const i18n = I18n.getInstance();
 
-const props = defineProps<{
-    profile: string,
-    useLvFeature: boolean,
-    useSkillFeature: boolean,
-}>()
-
 // profile related code
 
-console.log(`loading profile ${props.profile}`)
+const profileStore = useProfileStore();
 
-const profile = ref(props.profile);
+console.log(`loading profile ${profileStore.profile}`)
+
 
 const profileManager = await ProfileManager.getProfileManager();
-const data = reactive(await profileManager.loadProfile(props.profile));
+const data = reactive(await profileManager.loadProfile(profileStore.profile));
 
-watch(
-    () => props.profile,
-    async (newProfile) => {
-        console.log(`loading profile ${newProfile}`)
-        const newData = await profileManager.loadProfile(newProfile);
+profileStore.$subscribe((mutation, state) => {
+    console.log(mutation, state)
+    console.log(`loading profile ${state.profile}`)
+    profileManager.loadProfile(state.profile).then((newData) => {
         data.splice(0, data.length, ...newData);
-    }
-)
+    })
+})
 
 // end of profile related code
+
+const featStore = useFeatStore();
 
 // window size related code
 
@@ -279,11 +276,11 @@ const columns: DataTableColumns<OperatorTarget> = reactive(
 )
 
 watch(
-    () => props.useLvFeature,
+    () => featStore.useLvFeature,
     () => {
         calculateProfile();
         console.log("feat change")
-        if (props.useLvFeature) {
+        if (featStore.useLvFeature) {
             columns.splice(2, 0, lvColumns)
         } else {
             const index = columns.indexOf(lvColumns)
@@ -296,12 +293,12 @@ watch(
 )
 
 watch(
-    () => props.useSkillFeature,
+    () => featStore.useSkillFeature,
     () => {
         calculateProfile();
         console.log("feat change")
-        if (props.useSkillFeature) {
-            const index = props.useLvFeature ? 3 : 2
+        if (featStore.useSkillFeature) {
+            const index = featStore.useLvFeature ? 3 : 2
             columns.splice(index, 0, skillColumns)
         } else {
             const index = columns.indexOf(skillColumns)
@@ -325,8 +322,8 @@ function handleSearch(query: string) {
 }
 
 function calculateProfile() {
-    console.log(profile.value)
-    ResourceLoader.calculateProfileCost(data, props.useLvFeature, props.useSkillFeature).then((cost) => {
+    console.log(profileStore.profile)
+    ResourceLoader.calculateProfileCost(data, featStore.useLvFeature, featStore.useSkillFeature).then((cost) => {
         result.splice(0, result.length,...Array.from(cost.entries()).map(([material, count]) => ({ material, count })));
     })
 }
@@ -363,7 +360,7 @@ function addTargetToProfile() {
 
 function updateData(update: () => void) {
     update();
-    profileManager.saveProfile(profile.value, data);
+    profileManager.saveProfile(profileStore.profile, data);
     profileTableHeight.value = document.getElementById("profile-table")!.clientHeight;
     calculateProfile();
 }

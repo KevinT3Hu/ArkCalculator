@@ -1,31 +1,28 @@
 <script setup lang="ts">
-import { DropdownOption, iconDark, NCheckbox, useNotification } from 'naive-ui';
-import { h, reactive, ref } from 'vue'
+import { DropdownOption, NCheckbox, useNotification } from 'naive-ui';
+import { h, reactive, ref, watch } from 'vue'
 import AddIcon from '../assets/AddIcon.vue';
 import DoneIcon from '../assets/DoneIcon.vue';
 import DeleteIcon from '../assets/DeleteIcon.vue';
 import { ProfileManager } from '../helpers/ProfileManager';
 import { I18n } from '../i18n/strings';
-import { ConfigManager, Configs } from '../helpers/ConfigManager';
 import SettingsIcon from '../assets/SettingsIcon.vue';
-
-const props = defineProps<{
-  defProfile: string
-}>()
+import { useFeatStore, useProfileStore } from '../store';
 
 const i18n = I18n.getInstance();
-
-const selected = ref(props.defProfile)
 
 const createNewOpen = ref(false)
 
 const newProfileName = ref('')
 
-const emits = defineEmits<{
-  (event: 'updateProfile', profile: string): void
-  (event: 'updateUseLvFeature', use: boolean): void
-  (event: 'updateUseSkillFeature', use: boolean): void
-}>()
+const profileStore = useProfileStore();
+const featStore = useFeatStore();
+
+const selectedProfile = ref<string>(profileStore.profile);
+
+watch(selectedProfile, (value) => {
+  profileStore.setProfile(value);
+});
 
 const loadedProfileList:{label:string,value:string}[] = [];
 const profileManager = await ProfileManager.getProfileManager();
@@ -35,11 +32,6 @@ profileManager.profileList.forEach((profile) => {
 });
 
 const profileOptions = reactive(loadedProfileList);
-
-const configManager = await ConfigManager.getConfigManager();
-
-const useLvFeature = ref(configManager.getConfigOr(Configs.USE_LV_FEAT,true));
-const useSkillFeature = ref(configManager.getConfigOr(Configs.USE_SKILL_FEAT,true));
 
 const menuKeys={
   feat:"feat",
@@ -57,7 +49,7 @@ const menuOptions:DropdownOption[] = [
         key: "featLv",
         icon(){
           return h(NCheckbox, {
-            checked: useLvFeature.value,
+            checked: featStore.useLvFeature,
           })
         }
       },
@@ -66,7 +58,7 @@ const menuOptions:DropdownOption[] = [
         key: "featSkill",
         icon(){
           return h(NCheckbox, {
-            checked: useSkillFeature.value,
+            checked: featStore.useSkillFeature,
           })
         }
       }
@@ -74,18 +66,12 @@ const menuOptions:DropdownOption[] = [
   }
 ]
 
-function setSelectedValue(value: string) {
-  selected.value = value;
-  configManager.setConfig(Configs.DEFAULT_PROFILE, value);
-  emits('updateProfile', value)
-}
-
 function handleNewProfile() {
   console.log("handleNewProfile");
   profileManager.createProfile(newProfileName.value);
   createNewOpen.value = false;
   profileOptions.push({ label: newProfileName.value, value: newProfileName.value });
-  setSelectedValue(newProfileName.value);
+  selectedProfile.value = newProfileName.value;
   newProfileName.value = '';
   useNotification().success({
     title: 'Success',
@@ -95,27 +81,23 @@ function handleNewProfile() {
 
 function handleDeleteProfile() {
   console.log("handleDeleteProfile");
-  profileManager.deleteProfile(selected.value);
-  const list = profileOptions.filter((option) => option.value != selected.value);
+  profileManager.deleteProfile(profileStore.profile);
+  const list = profileOptions.filter((option) => option.value != profileStore.profile);
   if (list.length == 0) {
     profileManager.createProfile("Default");
     list.push({ label: "Default", value: "Default" });
   }
   profileOptions.splice(0, profileOptions.length, ...list);
-  setSelectedValue(profileOptions[0].value);
+  selectedProfile.value = list[0].value;
 }
 
 function handleMenuSelect(key: string|number){
   switch(String(key)){
     case menuKeys.featLv:
-      useLvFeature.value = !useLvFeature.value;
-      configManager.setConfig(Configs.USE_LV_FEAT,useLvFeature.value);
-      emits('updateUseLvFeature',useLvFeature.value);
+      featStore.setUseLvFeature(!featStore.useLvFeature);
       break;
     case menuKeys.featSkill:
-      useSkillFeature.value = !useSkillFeature.value;
-      configManager.setConfig(Configs.USE_SKILL_FEAT,useSkillFeature.value);
-      emits('updateUseSkillFeature',useSkillFeature.value);
+      featStore.setUseSkillFeature(!featStore.useSkillFeature);
       break;
   }
 }
@@ -125,8 +107,8 @@ function handleMenuSelect(key: string|number){
 
   <div id="header" class="row page-header noselect">
     <h2 class="title">{{ i18n.getStringDef("head") }}</h2>
-    <n-select class="profile-select" v-model:value="selected" :options="profileOptions"
-      @update:value="(value: string) => $emit('updateProfile',value)" :default-value="props.defProfile" />
+    <n-select class="profile-select" v-model:value="selectedProfile" :options="profileOptions"
+      @update:value="(value: string) => $emit('updateProfile',value)" :default-value="selectedProfile" />
     <n-tooltip trigger="hover" placement="bottom">
       <template #trigger>
         <n-button text class="icon-btn" @click="handleDeleteProfile">
