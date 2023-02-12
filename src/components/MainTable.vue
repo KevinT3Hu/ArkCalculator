@@ -385,8 +385,10 @@ function updateData(update: () => void) {
 
 function getPlan() {
     isPlanLoading.value = true;
+    plannedStages.splice(0, plannedStages.length);
 
     console.log("get plan")
+    console.log(result)
     const required = new Map<string, number>();
     result.forEach((item) => {
         required.set(item.material.id, item.count);
