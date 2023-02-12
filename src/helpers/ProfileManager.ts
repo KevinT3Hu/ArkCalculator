@@ -1,92 +1,25 @@
-import { fs } from "@tauri-apps/api";
-import { appConfigDir,join } from "@tauri-apps/api/path"
+import { invoke } from "@tauri-apps/api";
 import { OperatorTarget } from "../types";
 
 export class ProfileManager{
 
-    private _initialized:boolean = false;
-
-    private static _profileManager:ProfileManager|undefined;
-
-    private _profileList:string[] = [];
-
-    private profileDirectory:string|undefined;
-
-    get profileList():string[]{
-        return this._profileList;
+    static async getProfileList():Promise<string[]>{
+        return invoke("get_profile_list");
     }
 
-    private constructor(){}
-
-    async init():Promise<void>{
-        this.profileDirectory = await join(await appConfigDir(), "profiles");
-        console.log(this.profileDirectory);
-        await fs.createDir(this.profileDirectory, { recursive: true });
-        this._profileList = await this.getProfileList();
-        if(this._profileList.length==0){
-            await this.createProfile("default");
-        }
+    static async createProfile(name:string):Promise<void>{
+        return invoke("create_profile", {profileName:name});
     }
 
-    static async getProfileManager():Promise<ProfileManager>{
-        if(!this._profileManager){
-            this._profileManager = new ProfileManager();
-        }
-        if(!this._profileManager._initialized){
-            await this._profileManager.init();
-            this._profileManager._initialized = true;
-        }
-        return this._profileManager;
+    static async deleteProfile(name:string):Promise<void>{
+        return invoke("delete_profile", {profileName:name});
     }
 
-    private async getProfileList():Promise<string[]>{
-        if(this.profileDirectory==undefined){
-            return [];
-        }
-        const profileList = await fs.readDir(this.profileDirectory);
-        var profileNameList:string[] = [];
-        profileList.forEach(profile => {
-            const name = profile.name;
-            if(name==undefined){
-                return;
-            }
-            if(name.endsWith(".json")){
-                profileNameList.push(name.replace(".json", ""));
-            }
-        });
-        console.log(profileNameList);
-        return profileNameList;
+    static async loadProfile(name:string):Promise<OperatorTarget[]>{
+        return invoke("load_profile", {profileName:name});
     }
 
-    async createProfile(name:string):Promise<void>{
-        if(this.profileDirectory==undefined){
-            return;
-        }
-        await fs.writeTextFile(await join(this.profileDirectory,`${name}.json`), "[]");
-        this._profileList.push(name);
-    }
-
-    async deleteProfile(name:string):Promise<void>{
-        if(this.profileDirectory==undefined){
-            return;
-        }
-        await fs.removeFile(await join(this.profileDirectory, `${name}.json`));
-        this._profileList = this._profileList.filter(profileName => profileName!=name);
-    }
-
-    async loadProfile(name:string):Promise<OperatorTarget[]>{
-        if(this.profileDirectory==undefined){
-            return [];
-        }
-        const profile = await fs.readTextFile(await join(this.profileDirectory, `${name}.json`));
-        return JSON.parse(profile);
-    }
-
-    async saveProfile(name:string, profile:OperatorTarget[]):Promise<void>{
-        console.log(`saving profile ${name}`);
-        if(this.profileDirectory==undefined){
-            return;
-        }
-        await fs.writeTextFile(await join(this.profileDirectory, `${name}.json`), JSON.stringify(profile));
+    static async saveProfile(name:string, profile:OperatorTarget[]):Promise<void>{
+        return invoke("save_profile", {profileName:name, profile:profile});
     }
 }

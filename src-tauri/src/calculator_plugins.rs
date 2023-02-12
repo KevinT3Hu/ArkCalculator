@@ -10,9 +10,10 @@ pub struct OperatorInfo {
     pub skill_count: u8,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize,serde::Serialize, Debug)]
 pub struct OperatorTarget {
     pub name: String,
+    pub rarity: u8,
     pub current_elite: u8,
     pub target_elite: u8,
     pub current_level: u8,
@@ -20,7 +21,7 @@ pub struct OperatorTarget {
     pub skill_targets: Vec<SkillTarget>,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize,serde::Serialize, Debug)]
 pub struct SkillTarget {
     pub current_elite: u8,
     pub target_elite: u8,

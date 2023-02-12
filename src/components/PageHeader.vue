@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DropdownOption, NCheckbox, NDropdown, NSelect, NTooltip, useNotification } from 'naive-ui';
+import { DropdownOption, NCheckbox, NDropdown, NSelect, NTooltip, NIcon, useNotification, NInput, NSpin } from 'naive-ui';
 import { h, reactive, ref, watch } from 'vue'
 import AddIcon from '../assets/AddIcon.vue';
 import DoneIcon from '../assets/DoneIcon.vue';
@@ -8,6 +8,7 @@ import { ProfileManager } from '../helpers/ProfileManager';
 import { I18n } from '../i18n/strings';
 import SettingsIcon from '../assets/SettingsIcon.vue';
 import { useFeatStore, useProfileStore } from '../store';
+import { profile } from 'console';
 
 const i18n = I18n.getInstance();
 
@@ -24,30 +25,32 @@ watch(selectedProfile, (value) => {
   profileStore.setProfile(value);
 });
 
-const loadedProfileList:{label:string,value:string}[] = [];
-const profileManager = await ProfileManager.getProfileManager();
-profileManager.profileList.forEach((profile) => {
-  console.log(profile);
-  loadedProfileList.push({ label: profile, value: profile });
+const profileIsLoading = ref(true);
+
+const profileOptions: { label: string, value: string }[] = reactive([]);
+ProfileManager.getProfileList().then((list) => {
+  list.forEach((profile) => {
+    profileOptions.push({ label: profile, value: profile });
+  });
+}).finally(() => {
+  profileIsLoading.value = false;
 });
 
-const profileOptions = reactive(loadedProfileList);
-
-const menuKeys={
-  feat:"feat",
-  featLv:"featLv",
-  featSkill:"featSkill",
+const menuKeys = {
+  feat: "feat",
+  featLv: "featLv",
+  featSkill: "featSkill",
 }
 
-const menuOptions:DropdownOption[] = [
+const menuOptions: DropdownOption[] = [
   {
     label: i18n.getStringDef("menu_feat"),
     key: "feat",
-    children:[
+    children: [
       {
         label: i18n.getStringDef("menu_feat_lv"),
         key: "featLv",
-        icon(){
+        icon() {
           return h(NCheckbox, {
             checked: featStore.useLvFeature,
           })
@@ -56,7 +59,7 @@ const menuOptions:DropdownOption[] = [
       {
         label: i18n.getStringDef("menu_feat_skill"),
         key: "featSkill",
-        icon(){
+        icon() {
           return h(NCheckbox, {
             checked: featStore.useSkillFeature,
           })
@@ -68,31 +71,43 @@ const menuOptions:DropdownOption[] = [
 
 function handleNewProfile() {
   console.log("handleNewProfile");
-  profileManager.createProfile(newProfileName.value);
   createNewOpen.value = false;
-  profileOptions.push({ label: newProfileName.value, value: newProfileName.value });
-  selectedProfile.value = newProfileName.value;
-  newProfileName.value = '';
-  useNotification().success({
-    title: 'Success',
-    content: 'Profile created',
+  ProfileManager.createProfile(newProfileName.value).then(() => {
+    profileOptions.push({ label: newProfileName.value, value: newProfileName.value });
+    selectedProfile.value = newProfileName.value;
+    newProfileName.value = '';
+    useNotification().success({
+      title: 'Success',
+      content: 'Profile created',
+    });
+  }).catch((err) => {
+    useNotification().error({
+      title: 'Error',
+      content: err,
+    });
   });
 }
 
 function handleDeleteProfile() {
   console.log("handleDeleteProfile");
-  profileManager.deleteProfile(profileStore.profile);
-  const list = profileOptions.filter((option) => option.value != profileStore.profile);
-  if (list.length == 0) {
-    profileManager.createProfile("Default");
-    list.push({ label: "Default", value: "Default" });
-  }
-  profileOptions.splice(0, profileOptions.length, ...list);
-  selectedProfile.value = list[0].value;
+  ProfileManager.deleteProfile(profileStore.profile).then(() => {
+    useNotification().success({
+      title: 'Success',
+      content: 'Profile deleted',
+    });
+    const list = profileOptions.filter((option) => option.value != profileStore.profile);
+    if (list.length == 0) {
+      ProfileManager.createProfile("Default").then(() => {
+        list.push({ label: "Default", value: "Default" });
+        profileOptions.splice(0, profileOptions.length, ...list);
+        selectedProfile.value = list[0].value;
+      });
+    }
+  })
 }
 
-function handleMenuSelect(key: string|number){
-  switch(String(key)){
+function handleMenuSelect(key: string | number) {
+  switch (String(key)) {
     case menuKeys.featLv:
       featStore.setUseLvFeature(!featStore.useLvFeature);
       break;
@@ -108,11 +123,18 @@ function handleMenuSelect(key: string|number){
   <div id="header" class="row page-header noselect">
     <h2 class="title">{{ i18n.getStringDef("head") }}</h2>
     <NSelect class="profile-select" v-model:value="selectedProfile" :options="profileOptions"
-      @update:value="(value: string) => $emit('updateProfile',value)" :default-value="selectedProfile" />
+      @update:value="(value: string) => $emit('updateProfile', value)" :default-value="selectedProfile">
+      <template #empty>
+        <NSpin v-if="profileIsLoading"/>
+        <div v-else>{{ i18n.getStringDef("no_profile") }}</div>
+      </template>
+    </NSelect>
     <NTooltip trigger="hover" placement="bottom">
       <template #trigger>
         <NButton text class="icon-btn" @click="handleDeleteProfile">
-          <DeleteIcon />
+          <NIcon>
+            <DeleteIcon />
+          </NIcon>
         </NButton>
       </template>
       <span>{{ i18n.getStringDef("tooltip_delete_profile") }}</span>
@@ -120,34 +142,40 @@ function handleMenuSelect(key: string|number){
     <NTooltip trigger="hover" placement="bottom">
       <template #trigger>
         <NButton text class="icon-btn" @click="createNewOpen = !createNewOpen">
-          <AddIcon />
+          <NIcon>
+            <AddIcon />
+          </NIcon>
         </NButton>
       </template>
       <span>{{ i18n.getStringDef("tooltip_add_profile") }}</span>
     </NTooltip>
     <div class="row" :class="{ 'hidden': !createNewOpen }">
-      <n-input v-model:value="newProfileName" placeholder="Profile Name" />
+      <NInput v-model:value="newProfileName" placeholder="Profile Name" />
       <NButton text class="icon-btn" @click="handleNewProfile">
-        <DoneIcon />
+        <NIcon>
+          <DoneIcon />
+        </NIcon>
       </NButton>
     </div>
     <NDropdown trigger="hover" :options="menuOptions" @select="handleMenuSelect" placement="bottom-start">
-        <NButton text class="icon-btn menu-icon">
+      <NButton text class="icon-btn menu-icon">
+        <NIcon>
           <SettingsIcon />
-        </NButton>
+        </NIcon>
+      </NButton>
     </NDropdown>
   </div>
 
 </template>
 
 <style scoped>
-
 .page-header {
   height: 60px;
   background-color: var(--bar-background-color);
-  position:sticky;
-  top:0;
+  position: sticky;
+  top: 0;
 }
+
 .title {
   margin: 1%;
 }

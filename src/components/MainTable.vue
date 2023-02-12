@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { DataTableColumn, DataTableColumns, NButton, NDataTable, NDivider, NInputNumber, NList, NListItem, NScrollbar, NSelect, NSkeleton, NTooltip } from 'naive-ui';
-import { h, onMounted, reactive, ref, watch } from 'vue';
+import { DataTableColumn, DataTableColumns, NButton, NDataTable, NDivider, NInputNumber, NList, NListItem, NScrollbar, NSelect, NSkeleton, NTooltip, NIcon } from 'naive-ui';
+import { computed, h, onMounted, reactive, ref, watch } from 'vue';
 import AddTask from '../assets/AddTask.vue';
 import { getMaxElite, getMaxLevel, getRarityColor } from '../helpers/OperatorHelper';
 import { ProfileManager } from '../helpers/ProfileManager';
 import { ResourceLoader } from '../helpers/ResourceLoader';
 import { I18n } from '../i18n/strings';
 import { useFeatStore, useProfileStore } from '../store';
-import { OperatorTarget, SkillTarget, Stage, Material } from '../types';
+import { OperatorTarget, SkillTarget, Stage, Material, OperatorInfo } from '../types';
 
 const i18n = I18n.getInstance();
 
@@ -17,14 +17,16 @@ const profileStore = useProfileStore();
 
 console.log(`loading profile ${profileStore.profile}`)
 
+const data:OperatorTarget[] = reactive([]);
 
-const profileManager = await ProfileManager.getProfileManager();
-const data = reactive(await profileManager.loadProfile(profileStore.profile));
+ProfileManager.loadProfile(profileStore.profile).then((newData) => {
+    data.splice(0, data.length, ...newData);
+})
 
 profileStore.$subscribe((mutation, state) => {
     console.log(mutation, state)
     console.log(`loading profile ${state.profile}`)
-    profileManager.loadProfile(state.profile).then((newData) => {
+    ProfileManager.loadProfile(state.profile).then((newData) => {
         data.splice(0, data.length, ...newData);
     })
 })
@@ -63,18 +65,14 @@ onMounted(() => {
 
 const newOperatorName = ref<string | undefined>(undefined);
 
-const operatorList = await ResourceLoader.getOperatorList();
+const operatorList:OperatorInfo[] = reactive([]);
 
-const newOperatorOptions = ref(operatorList.map((operator) => ({
-    label: operator.name,
-    value: operator.name,
-    style: {
-        color: getRarityColor(operator.rarity)
-    }
-})))
+ResourceLoader.getOperatorList().then((newData) => {
+    operatorList.splice(0, operatorList.length, ...newData);
+})
 
-watch(newOperatorName, (value) => {
-    newOperatorOptions.value = operatorList.filter((operator) => operator.name.includes(value ?? '')).map((operator) => ({ label: operator.name, value: operator.name, style: { color: getRarityColor(operator.rarity) } }))
+const newOperatorOptions = computed(() => {
+    return operatorList.filter((operator) => operator.name.includes(newOperatorName.value ?? '')).map((operator) => ({ label: operator.name, value: operator.name, style: { color: getRarityColor(operator.rarity) } }))
 })
 
 // end of new operator related code
@@ -316,11 +314,6 @@ const isPlanLoading = ref(false);
 
 const showAddIcon = ref(false);
 
-function handleSearch(query: string) {
-    newOperatorOptions.value = operatorList.filter((operator) => operator.name.includes(query)).map((operator) => ({ label: operator.name, value: operator.name, style: { color: getRarityColor(operator.rarity) } }))
-    newOperatorOptions.value = newOperatorOptions.value.filter((operator) => !data.find((target) => target.name === operator.value))
-}
-
 function calculateProfile() {
     console.log(profileStore.profile)
     ResourceLoader.calculateProfileCost(data, featStore.useLvFeature, featStore.useSkillFeature).then((cost) => {
@@ -360,7 +353,7 @@ function addTargetToProfile() {
 
 function updateData(update: () => void) {
     update();
-    profileManager.saveProfile(profileStore.profile, data);
+    ProfileManager.saveProfile(profileStore.profile, data);
     profileTableHeight.value = document.getElementById("profile-table")!.clientHeight;
     calculateProfile();
 }
@@ -430,11 +423,13 @@ function getPlan() {
     <div id="bottom-bar" class="row bottom-bar">
         <NSelect class="new-oper-select" v-model:value="newOperatorName" filterable
             :placeholder="i18n.getStringDef('select_hint')" clearable :options="newOperatorOptions"
-            @search="handleSearch" @update:value="handleNewOperatorValueChange" />
+            @update:value="handleNewOperatorValueChange" />
         <NTooltip trigger="hover" text v-if="showAddIcon" placement="top">
             <template #trigger>
                 <NButton class="add-to-profile" @click="addTargetToProfile">
-                    <AddTask />
+                    <NIcon>
+                        <AddTask />
+                    </NIcon>
                 </NButton>
             </template>
             <span>{{ i18n.getStringDef("select_add") }}</span>

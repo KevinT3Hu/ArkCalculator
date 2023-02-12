@@ -2,6 +2,7 @@ const strings:{[key:string]:{[key:string]:string}}={
     "en":{
         "app_name":"Arknights Operator Cost Calculator",
         "head":"ArkCalculator",
+        "no_profile":"No profile",
         "table_head_lv":"Level",
         "table_head_name":"Name",
         "table_head_rarity":"Rarity",
@@ -28,6 +29,7 @@ const strings:{[key:string]:{[key:string]:string}}={
     },
     "zh-CN":{
         "app_name":"明日方舟干员培养计算器",
+        "no_profile":"没有配置",
         "table_head_lv":"等级",
         "table_head_name":"干员名",
         "table_head_rarity":"稀有度",

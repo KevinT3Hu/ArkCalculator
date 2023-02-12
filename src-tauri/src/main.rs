@@ -3,106 +3,80 @@
     windows_subsystem = "windows"
 )]
 
-mod plugins;
+mod calculator;
+mod calculator_plugins;
+mod config;
+mod profile;
 
-use std::{collections::HashMap, sync::Mutex};
+use std::sync::Mutex;
 
 use ark_calculator::resource_loader::ResourceLoader;
-use plugins::{calculate_skill_cost_internal, combine_cost, Stage};
-use serde_json::Value;
+use config::ConfigStore;
+use profile::ProfileStore;
 
-use crate::plugins::{calculate_cost_internal, OperatorInfo, OperatorTarget};
-
-struct AppState{
-    resource_loader:Mutex<Option<ResourceLoader>>
+pub struct AppState {
+    resource_loader: Mutex<Option<ResourceLoader>>,
+    config_store: Mutex<Option<ConfigStore>>,
+    profile_store: Mutex<Option<ProfileStore>>,
 }
 
 #[tauri::command]
-fn init(app_handle:tauri::AppHandle,app_state: tauri::State<AppState>) -> Result<(),String> {
-    let path = app_handle.path_resolver().resolve_resource("json").unwrap().to_str().unwrap().to_owned();
-    let resource_loader = ResourceLoader::new(&path);
+fn init(app_handle: tauri::AppHandle, app_state: tauri::State<AppState>) -> Result<(), String> {
+    let json_resource_path = app_handle
+        .path_resolver()
+        .resolve_resource("json")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_owned();
+    let resource_loader = ResourceLoader::new(&json_resource_path);
     *app_state.resource_loader.lock().unwrap() = Some(resource_loader);
+
+    let path = app_handle
+        .path_resolver()
+        .app_config_dir()
+        .unwrap()
+        .join("config.json");
+    let config_file_path = path.to_str().unwrap();
+    let config_store = ConfigStore::new(config_file_path);
+    *app_state.config_store.lock().unwrap() = Some(config_store);
+
+    let path = app_handle
+        .path_resolver()
+        .app_data_dir()
+        .unwrap()
+        .join("profiles");
+    let profile_directory_path = path.to_str().unwrap();
+    let profile_store = ProfileStore::new(profile_directory_path);
+    *app_state.profile_store.lock().unwrap() = Some(profile_store);
+
     Ok(())
 }
 
-#[tauri::command]
-fn get_operator_list(app_state: tauri::State<AppState>) -> Vec<OperatorInfo> {
-    let resource_loader = app_state.resource_loader.lock().unwrap();
-    let resource_loader = resource_loader.as_ref().unwrap();
-    resource_loader.get_operator_list().unwrap().iter().map(|(_,operator)|{
-        let skill_count = match &operator.skills {
-            None => 0,
-            Some(skills) => skills.len() as u8
-        };
-        OperatorInfo{
-            name:operator.name.clone(),
-            rarity:operator.rarity,
-            skill_count
-        }
-    }).collect()
-}
-
-#[tauri::command]
-fn calculate_cost(app_state: tauri::State<AppState>, target:OperatorTarget) -> HashMap<String, u32> {
-    let resource_loader = app_state.resource_loader.lock().unwrap();
-    let resource_loader = resource_loader.as_ref().unwrap();
-    let level_cost = calculate_cost_internal(&resource_loader, &target);
-    let skills_cost = calculate_skill_cost_internal(&resource_loader, &target.name, &target.skill_targets);
-    combine_cost(&level_cost, &skills_cost)
-}
-
-#[tauri::command]
-fn calculate_total_cost(app_state: tauri::State<AppState>, targets:Vec<OperatorTarget>,use_lv:bool,use_skill:bool) -> HashMap<String, u32> {
-    let mut total_cost = HashMap::new();
-    let resource_loader = app_state.resource_loader.lock().unwrap();
-    let resource_loader = resource_loader.as_ref().unwrap();
-    println!("{:?}",targets);
-    for target in targets{
-        let lv_cost = if use_lv {
-            calculate_cost_internal(&resource_loader, &target)
-        } else {
-            HashMap::new()
-        };
-        let skills_cost = if use_skill {
-            calculate_skill_cost_internal(&resource_loader, &target.name, &target.skill_targets)
-        } else {
-            HashMap::new()
-        };
-        let cost = combine_cost(&lv_cost, &skills_cost);
-        total_cost = combine_cost(&total_cost, &cost);
-    }
-    total_cost
-}
-
-#[tauri::command]
-fn get_material_name(app_state: tauri::State<AppState>, material_id:&str) -> String {
-    let resource_loader = app_state.resource_loader.lock().unwrap();
-    let resource_loader = resource_loader.as_ref().unwrap();
-    resource_loader.get_material_name(material_id).unwrap()
-}
-
-// passing the param as a string and deserializing it is a workaround for the bug that HashMao would be empty when passed as a param
-// see https://github.com/tauri-apps/tauri/issues/6078
-#[tauri::command]
-fn get_planner_plan(required:&str) -> Result<Vec<Stage>,String>{
-    println!("required:{}",required);
-    let required:Value = serde_json::from_str(required).unwrap();
-    let required = required.as_array().unwrap();
-    let required = required.iter().map(|value|{
-        let value = value.as_array().unwrap();
-        (value[0].as_str().unwrap().to_owned(),value[1].as_u64().unwrap() as u32)
-    }).collect::<HashMap<String,u32>>();
-    plugins::get_planner_plan(&required).map_err(|e|{e.to_string()})
-}
-
 fn main() {
-    let app_state = AppState{
-        resource_loader:Mutex::new(None)
+    let app_state = AppState {
+        resource_loader: Mutex::new(None),
+        config_store: Mutex::new(None),
+        profile_store: Mutex::new(None),
     };
 
     tauri::Builder::default()
         .manage(app_state)
-        .invoke_handler(tauri::generate_handler![get_operator_list,calculate_cost,calculate_total_cost,init,get_material_name,get_planner_plan])
+        .invoke_handler(tauri::generate_handler![
+            init,
+            calculator::get_operator_list,
+            calculator::calculate_cost,
+            calculator::calculate_total_cost,
+            calculator::get_material_name,
+            calculator::get_planner_plan,
+            config::get_config,
+            config::set_config,
+            profile::get_profile_list,
+            profile::create_profile,
+            profile::delete_profile,
+            profile::load_profile,
+            profile::save_profile,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -1,16 +1,12 @@
 import { createApp } from "vue";
 import "./style.css";
-import SuspensePage from "./SuspensePage.vue";
+import App from "./App.vue";
 import { invoke } from "@tauri-apps/api";
 import { I18n } from "./i18n/strings";
 import { appWindow } from "@tauri-apps/api/window";
 import { createPinia } from "pinia";
-
-invoke("init").then(()=>
-    console.log("Tauri init success")
-).catch(()=>
-    console.log("Tauri init failed")
-);
+import { ConfigManager, Configs } from "./helpers/ConfigManager";
+import { useFeatStore, useProfileStore } from "./store";
 
 const language = navigator.language;
 
@@ -27,9 +23,22 @@ if (process.env.NODE_ENV === "production") {
         e.preventDefault();
     });
 }
-const app = createApp(SuspensePage);
+const app = createApp(App);
 
 const pinia = createPinia();
 app.use(pinia);
+
+invoke("init").then(async ()=>{
+    const defProfile:string = await ConfigManager.getConfigOr(Configs.DEFAULT_PROFILE,"Default");
+    const useLvFeat:boolean = await ConfigManager.getConfigOr(Configs.USE_LV_FEAT,true);
+    const useSkillFeat:boolean = await ConfigManager.getConfigOr(Configs.USE_SKILL_FEAT,true);
+
+    const profileStore = useProfileStore();
+    profileStore.profile = defProfile;
+
+    const featStore = useFeatStore();
+    featStore.useLvFeature = useLvFeat;
+    featStore.useSkillFeature = useSkillFeat;
+})
 
 app.mount("#app");

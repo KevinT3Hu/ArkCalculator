@@ -1,17 +1,15 @@
 import { defineStore } from 'pinia';
 import { ConfigManager, Configs } from './helpers/ConfigManager';
 
-const configManager = await ConfigManager.getConfigManager();
-
 export const useProfileStore = defineStore({
     id: 'profile',
     state: () => ({
-        profile: configManager.getConfigOr(Configs.DEFAULT_PROFILE,"Default"),
+        profile: 'Default',
     }),
     actions:{
-        setProfile(profile:string){
+        async setProfile(profile:string){
             this.profile = profile;
-            configManager.setConfig(Configs.DEFAULT_PROFILE, profile);
+            await ConfigManager.setConfig(Configs.DEFAULT_PROFILE, profile);
         }
     },
 });
@@ -19,18 +17,18 @@ export const useProfileStore = defineStore({
 export const useFeatStore = defineStore({
     id: 'feat',
     state: () => ({
-        useLvFeature: configManager.getConfigOr(Configs.USE_LV_FEAT,true),
-        useSkillFeature: configManager.getConfigOr(Configs.USE_SKILL_FEAT,true),
+        useLvFeature: false,
+        useSkillFeature: false,
     }),
     actions:{
-        setUseLvFeature(useLvFeature:boolean){
+        async setUseLvFeature(useLvFeature:boolean){
             this.useLvFeature = useLvFeature;
-            configManager.setConfig(Configs.USE_LV_FEAT, useLvFeature);
+            await ConfigManager.setConfig(Configs.USE_LV_FEAT, useLvFeature);
         },
 
-        setUseSkillFeature(useSkillFeature:boolean){
+        async setUseSkillFeature(useSkillFeature:boolean){
             this.useSkillFeature = useSkillFeature;
-            configManager.setConfig(Configs.USE_SKILL_FEAT, useSkillFeature);
+            await ConfigManager.setConfig(Configs.USE_SKILL_FEAT, useSkillFeature);
         }
     },
 });
