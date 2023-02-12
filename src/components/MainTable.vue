@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DataTableColumn, DataTableColumns, NButton, NDataTable, NDivider, NInputNumber, NList, NListItem, NScrollbar, NSelect, NSkeleton, NTooltip, NIcon } from 'naive-ui';
+import { DataTableColumn, DataTableColumns, NButton, NDataTable, NDivider, NInputNumber, NList, NListItem, NScrollbar, NSelect, NSkeleton, NTooltip, NIcon, DataTableRowKey } from 'naive-ui';
 import { computed, h, onMounted, reactive, ref, watch } from 'vue';
 import AddTask from '../assets/AddTask.vue';
 import { getMaxElite, getMaxLevel, getRarityColor } from '../helpers/OperatorHelper';
@@ -17,7 +17,7 @@ const profileStore = useProfileStore();
 
 console.log(`loading profile ${profileStore.profile}`)
 
-const data:OperatorTarget[] = reactive([]);
+const data: OperatorTarget[] = reactive([]);
 
 ProfileManager.loadProfile(profileStore.profile).then((newData) => {
     data.splice(0, data.length, ...newData);
@@ -65,7 +65,7 @@ onMounted(() => {
 
 const newOperatorName = ref<string | undefined>(undefined);
 
-const operatorList:OperatorInfo[] = reactive([]);
+const operatorList: OperatorInfo[] = reactive([]);
 
 ResourceLoader.getOperatorList().then((newData) => {
     operatorList.splice(0, operatorList.length, ...newData);
@@ -76,6 +76,9 @@ const newOperatorOptions = computed(() => {
 })
 
 // end of new operator related code
+
+const checkedOperators: OperatorTarget[] = reactive([]);
+const hasCheckedOperators = computed(() => checkedOperators.length > 0);
 
 const plannedStages: Stage[] = reactive([]);
 
@@ -239,6 +242,10 @@ const lvColumns: DataTableColumn<OperatorTarget> = {
 const columns: DataTableColumns<OperatorTarget> = reactive(
     [
         {
+            type: 'selection',
+
+        },
+        {
             title: i18n.getStringDef("table_head_name"),
             key: 'name',
             render(row) {
@@ -256,19 +263,6 @@ const columns: DataTableColumns<OperatorTarget> = reactive(
             render(row) {
                 return h('span', row.rarity + 1)
             }
-        },
-        {
-            title: i18n.getStringDef("table_head_action"),
-            key: 'action',
-            render(_row, index) {
-                return h(NButton, {
-                    onClick: () => {
-                        updateData(() => {
-                            data.splice(index, 1);
-                        })
-                    }
-                }, i18n.getStringDef("table_action_delete"))
-            }
         }
     ]
 )
@@ -279,7 +273,7 @@ watch(
         calculateProfile();
         console.log("feat change")
         if (featStore.useLvFeature) {
-            columns.splice(2, 0, lvColumns)
+            columns.splice(3, 0, lvColumns)
         } else {
             const index = columns.indexOf(lvColumns)
             if (index >= 0) {
@@ -296,7 +290,7 @@ watch(
         calculateProfile();
         console.log("feat change")
         if (featStore.useSkillFeature) {
-            const index = featStore.useLvFeature ? 3 : 2
+            const index = featStore.useLvFeature ? 4 : 3
             columns.splice(index, 0, skillColumns)
         } else {
             const index = columns.indexOf(skillColumns)
@@ -308,7 +302,7 @@ watch(
     { immediate: true }
 )
 
-const result = reactive<{material:Material,count:number}[]>([])
+const result = reactive<{ material: Material, count: number }[]>([])
 
 const isPlanLoading = ref(false);
 
@@ -317,8 +311,21 @@ const showAddIcon = ref(false);
 function calculateProfile() {
     console.log(profileStore.profile)
     ResourceLoader.calculateProfileCost(data, featStore.useLvFeature, featStore.useSkillFeature).then((cost) => {
-        result.splice(0, result.length,...Array.from(cost.entries()).map(([material, count]) => ({ material, count })));
+        result.splice(0, result.length, ...Array.from(cost.entries()).map(([material, count]) => ({ material, count })));
     })
+}
+
+function checkedOperatorsChange(checkedOperatorKeys: DataTableRowKey[]) {
+    checkedOperators.splice(0, checkedOperators.length);
+    checkedOperatorKeys.forEach((key) => {
+        const operator = data.find((operator) => operator.name === key)!;
+        checkedOperators.push(operator);
+    })
+    if (checkedOperators.length > 0) {
+        calculateSelectedOperators();
+    } else {
+        calculateProfile();
+    }
 }
 
 function handleNewOperatorValueChange(value: string) {
@@ -351,6 +358,24 @@ function addTargetToProfile() {
     showAddIcon.value = false;
 }
 
+function deleteSelectedOperators() {
+    updateData(() => {
+        checkedOperators.forEach((operator) => {
+            const index = data.indexOf(operator);
+            if (index >= 0) {
+                data.splice(index, 1);
+            }
+        })
+        checkedOperators.splice(0, checkedOperators.length);
+    })
+}
+
+function calculateSelectedOperators() {
+    ResourceLoader.calculateProfileCost(checkedOperators, featStore.useLvFeature, featStore.useSkillFeature).then((cost) => {
+        result.splice(0, result.length, ...Array.from(cost.entries()).map(([material, count]) => ({ material, count })));
+    })
+}
+
 function updateData(update: () => void) {
     update();
     ProfileManager.saveProfile(profileStore.profile, data);
@@ -375,7 +400,7 @@ function getPlan() {
                 count: count
             });
         })
-    }).catch((e)=>{
+    }).catch((e) => {
         isPlanLoading.value = false;
         console.log(e)
     })
@@ -384,41 +409,42 @@ function getPlan() {
 
 <template>
 
-<NScrollbar class="main">
-    <div>
-        <NDataTable id="profile-table" class="table noselect" :columns="columns" :data="data"
-        :max-height="300">
-        <template #empty>
-            <span class="empty">
-                {{ i18n.getStringDef("table_empty") }}
-            </span>
-        </template>
-        </NDataTable>
-    <NDivider id="separator" title-placement="left" class="noselect">
-        {{ i18n.getStringDef("result_title") }}
-    </NDivider>
-    <div class="row">
-        <div class="sub-result">
-                <NList hoverable>
-                    <NListItem class="result-item" v-for="item in result" :key="item.material.id">
-                        <span>{{ item.material.name }}</span>
-                        <span class="count">{{ item.count }}</span>
-                    </NListItem>
-                </NList>
+    <NScrollbar class="main">
+        <div>
+            <NDataTable id="profile-table" class="table noselect" :columns="columns" :data="data"
+                @update:checked-row-keys="checkedOperatorsChange" :row-key="(row) => row.name" :max-height="300">
+                <template #empty>
+                    <span class="empty">
+                        {{ i18n.getStringDef("table_empty") }}
+                    </span>
+                </template>
+            </NDataTable>
+            <NDivider id="separator" title-placement="left" class="noselect">
+                {{ i18n.getStringDef("result_title") }}
+            </NDivider>
+            <div class="row">
+                <div class="sub-result">
+                    <NList hoverable>
+                        <NListItem class="result-item" v-for="item in result" :key="item.material.id">
+                            <span>{{ item.material.name }}</span>
+                            <span class="count">{{ item.count }}</span>
+                        </NListItem>
+                    </NList>
+                </div>
+                <div class="sub-result">
+                    <NSkeleton text class="loading" v-if="isPlanLoading" :repeat="6"
+                        :style="`max-height: ${0.5 * (windowHeight - separatorHeight - bottomBarHeight - headerHeight)}px;`" />
+                    <NList v-else hoverable>
+                        <NListItem class="result-item" v-for="item in plannedStages" :key="item.name">
+                            <span>{{ item.name }}</span>
+                            <span class="count">{{ item.count }}</span>
+                        </NListItem>
+                    </NList>
+                </div>
+            </div>
         </div>
-        <div class="sub-result">
-            <NSkeleton text class="loading" v-if="isPlanLoading" :repeat="6" :style="`max-height: ${0.5 * (windowHeight - separatorHeight - bottomBarHeight - headerHeight)}px;`" />
-                <NList v-else hoverable>
-                    <NListItem class="result-item" v-for="item in plannedStages" :key="item.name">
-                        <span>{{ item.name }}</span>
-                        <span class="count">{{ item.count }}</span>
-                    </NListItem>
-                </NList>
-        </div>
-    </div>
-    </div>
-    
-</NScrollbar>
+
+    </NScrollbar>
 
     <div id="bottom-bar" class="row bottom-bar">
         <NSelect class="new-oper-select" v-model:value="newOperatorName" filterable
@@ -434,9 +460,17 @@ function getPlan() {
             </template>
             <span>{{ i18n.getStringDef("select_add") }}</span>
         </NTooltip>
-        <NButton class="btn-calculate" @click="getPlan">{{
-            i18n.getStringDef("btn_plan")
-        }}</NButton>
+        <div class="bottom-actions row">
+            <div v-if="hasCheckedOperators">
+                <NButton class="bottom-action" type="error" @click="deleteSelectedOperators">{{
+                    i18n.getStringDef("btn_delete")
+                }}</NButton>
+            </div>
+            <NButton class="bottom-action" @click="getPlan">{{
+                i18n.getStringDef("btn_plan")
+            }}</NButton>
+        </div>
+
     </div>
 </template>
 
@@ -466,9 +500,13 @@ function getPlan() {
     margin-left: 10px;
 }
 
-.btn-calculate {
+.bottom-actions {
     margin-left: auto;
     margin-right: 10px;
+}
+
+.bottom-action {
+    margin-left: 10px;
 }
 
 .bottom-bar {
