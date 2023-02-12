@@ -1,40 +1,39 @@
 <script setup lang="ts">
-import { DataTableColumn, DataTableColumns, NButton, NInputNumber } from 'naive-ui';
-import { h, onMounted, reactive, ref, watch } from 'vue';
+import { DataTableColumn, DataTableColumns, NButton, NDataTable, NDivider, NInputNumber, NList, NListItem, NScrollbar, NSelect, NSkeleton, NTooltip, NIcon, DataTableRowKey } from 'naive-ui';
+import { computed, h, onMounted, reactive, ref, watch } from 'vue';
 import AddTask from '../assets/AddTask.vue';
 import { getMaxElite, getMaxLevel, getRarityColor } from '../helpers/OperatorHelper';
 import { ProfileManager } from '../helpers/ProfileManager';
 import { ResourceLoader } from '../helpers/ResourceLoader';
 import { I18n } from '../i18n/strings';
-import { OperatorTarget, SkillTarget, Stage, Material } from '../types';
+import { useFeatStore, useProfileStore } from '../store';
+import { OperatorTarget, SkillTarget, Stage, Material, OperatorInfo } from '../types';
 
 const i18n = I18n.getInstance();
 
-const props = defineProps<{
-    profile: string,
-    useLvFeature: boolean,
-    useSkillFeature: boolean,
-}>()
-
 // profile related code
 
-console.log(`loading profile ${props.profile}`)
+const profileStore = useProfileStore();
 
-const profile = ref(props.profile);
+console.log(`loading profile ${profileStore.profile}`)
 
-const profileManager = await ProfileManager.getProfileManager();
-const data = reactive(await profileManager.loadProfile(props.profile));
+const data: OperatorTarget[] = reactive([]);
 
-watch(
-    () => props.profile,
-    async (newProfile) => {
-        console.log(`loading profile ${newProfile}`)
-        const newData = await profileManager.loadProfile(newProfile);
+ProfileManager.loadProfile(profileStore.profile).then((newData) => {
+    data.splice(0, data.length, ...newData);
+})
+
+profileStore.$subscribe((mutation, state) => {
+    console.log(mutation, state)
+    console.log(`loading profile ${state.profile}`)
+    ProfileManager.loadProfile(state.profile).then((newData) => {
         data.splice(0, data.length, ...newData);
-    }
-)
+    })
+})
 
 // end of profile related code
+
+const featStore = useFeatStore();
 
 // window size related code
 
@@ -66,21 +65,20 @@ onMounted(() => {
 
 const newOperatorName = ref<string | undefined>(undefined);
 
-const operatorList = await ResourceLoader.getOperatorList();
+const operatorList: OperatorInfo[] = reactive([]);
 
-const newOperatorOptions = ref(operatorList.map((operator) => ({
-    label: operator.name,
-    value: operator.name,
-    style: {
-        color: getRarityColor(operator.rarity)
-    }
-})))
+ResourceLoader.getOperatorList().then((newData) => {
+    operatorList.splice(0, operatorList.length, ...newData);
+})
 
-watch(newOperatorName, (value) => {
-    newOperatorOptions.value = operatorList.filter((operator) => operator.name.includes(value ?? '')).map((operator) => ({ label: operator.name, value: operator.name, style: { color: getRarityColor(operator.rarity) } }))
+const newOperatorOptions = computed(() => {
+    return operatorList.filter((operator) => operator.name.includes(newOperatorName.value ?? '')).map((operator) => ({ label: operator.name, value: operator.name, style: { color: getRarityColor(operator.rarity) } }))
 })
 
 // end of new operator related code
+
+const checkedOperators: OperatorTarget[] = reactive([]);
+const hasCheckedOperators = computed(() => checkedOperators.length > 0);
 
 const plannedStages: Stage[] = reactive([]);
 
@@ -244,6 +242,10 @@ const lvColumns: DataTableColumn<OperatorTarget> = {
 const columns: DataTableColumns<OperatorTarget> = reactive(
     [
         {
+            type: 'selection',
+
+        },
+        {
             title: i18n.getStringDef("table_head_name"),
             key: 'name',
             render(row) {
@@ -261,30 +263,17 @@ const columns: DataTableColumns<OperatorTarget> = reactive(
             render(row) {
                 return h('span', row.rarity + 1)
             }
-        },
-        {
-            title: i18n.getStringDef("table_head_action"),
-            key: 'action',
-            render(_row, index) {
-                return h(NButton, {
-                    onClick: () => {
-                        updateData(() => {
-                            data.splice(index, 1);
-                        })
-                    }
-                }, i18n.getStringDef("table_action_delete"))
-            }
         }
     ]
 )
 
 watch(
-    () => props.useLvFeature,
+    () => featStore.useLvFeature,
     () => {
         calculateProfile();
         console.log("feat change")
-        if (props.useLvFeature) {
-            columns.splice(2, 0, lvColumns)
+        if (featStore.useLvFeature) {
+            columns.splice(3, 0, lvColumns)
         } else {
             const index = columns.indexOf(lvColumns)
             if (index >= 0) {
@@ -296,12 +285,12 @@ watch(
 )
 
 watch(
-    () => props.useSkillFeature,
+    () => featStore.useSkillFeature,
     () => {
         calculateProfile();
         console.log("feat change")
-        if (props.useSkillFeature) {
-            const index = props.useLvFeature ? 3 : 2
+        if (featStore.useSkillFeature) {
+            const index = featStore.useLvFeature ? 4 : 3
             columns.splice(index, 0, skillColumns)
         } else {
             const index = columns.indexOf(skillColumns)
@@ -313,22 +302,30 @@ watch(
     { immediate: true }
 )
 
-const result = reactive<{material:Material,count:number}[]>([])
+const result = reactive<{ material: Material, count: number }[]>([])
 
 const isPlanLoading = ref(false);
 
 const showAddIcon = ref(false);
 
-function handleSearch(query: string) {
-    newOperatorOptions.value = operatorList.filter((operator) => operator.name.includes(query)).map((operator) => ({ label: operator.name, value: operator.name, style: { color: getRarityColor(operator.rarity) } }))
-    newOperatorOptions.value = newOperatorOptions.value.filter((operator) => !data.find((target) => target.name === operator.value))
+function calculateProfile() {
+    console.log(profileStore.profile)
+    ResourceLoader.calculateProfileCost(data, featStore.useLvFeature, featStore.useSkillFeature).then((cost) => {
+        result.splice(0, result.length, ...Array.from(cost.entries()).map(([material, count]) => ({ material, count })));
+    })
 }
 
-function calculateProfile() {
-    console.log(profile.value)
-    ResourceLoader.calculateProfileCost(data, props.useLvFeature, props.useSkillFeature).then((cost) => {
-        result.splice(0, result.length,...Array.from(cost.entries()).map(([material, count]) => ({ material, count })));
+function checkedOperatorsChange(checkedOperatorKeys: DataTableRowKey[]) {
+    checkedOperators.splice(0, checkedOperators.length);
+    checkedOperatorKeys.forEach((key) => {
+        const operator = data.find((operator) => operator.name === key)!;
+        checkedOperators.push(operator);
     })
+    if (checkedOperators.length > 0) {
+        calculateSelectedOperators();
+    } else {
+        calculateProfile();
+    }
 }
 
 function handleNewOperatorValueChange(value: string) {
@@ -361,17 +358,37 @@ function addTargetToProfile() {
     showAddIcon.value = false;
 }
 
+function deleteSelectedOperators() {
+    updateData(() => {
+        checkedOperators.forEach((operator) => {
+            const index = data.indexOf(operator);
+            if (index >= 0) {
+                data.splice(index, 1);
+            }
+        })
+        checkedOperators.splice(0, checkedOperators.length);
+    })
+}
+
+function calculateSelectedOperators() {
+    ResourceLoader.calculateProfileCost(checkedOperators, featStore.useLvFeature, featStore.useSkillFeature).then((cost) => {
+        result.splice(0, result.length, ...Array.from(cost.entries()).map(([material, count]) => ({ material, count })));
+    })
+}
+
 function updateData(update: () => void) {
     update();
-    profileManager.saveProfile(profile.value, data);
+    ProfileManager.saveProfile(profileStore.profile, data);
     profileTableHeight.value = document.getElementById("profile-table")!.clientHeight;
     calculateProfile();
 }
 
 function getPlan() {
     isPlanLoading.value = true;
+    plannedStages.splice(0, plannedStages.length);
 
     console.log("get plan")
+    console.log(result)
     const required = new Map<string, number>();
     result.forEach((item) => {
         required.set(item.material.id, item.count);
@@ -385,7 +402,7 @@ function getPlan() {
                 count: count
             });
         })
-    }).catch((e)=>{
+    }).catch((e) => {
         isPlanLoading.value = false;
         console.log(e)
     })
@@ -394,57 +411,68 @@ function getPlan() {
 
 <template>
 
-<n-scrollbar class="main">
-    <div>
-        <n-data-table id="profile-table" class="table noselect" :columns="columns" :data="data"
-        :max-height="300">
-        <template #empty>
-            <span class="empty">
-                {{ i18n.getStringDef("table_empty") }}
-            </span>
-        </template>
-    </n-data-table>
-    <n-divider id="separator" title-placement="left" class="noselect">
-        {{ i18n.getStringDef("result_title") }}
-    </n-divider>
-    <div class="row">
-        <div class="sub-result">
-                <n-list hoverable>
-                    <n-list-item class="result-item" v-for="item in result" :key="item.material.id">
-                        <span>{{ item.material.name }}</span>
-                        <span class="count">{{ item.count }}</span>
-                    </n-list-item>
-                </n-list>
+    <NScrollbar class="main">
+        <div>
+            <NDataTable id="profile-table" class="table noselect" :columns="columns" :data="data"
+                @update:checked-row-keys="checkedOperatorsChange" :row-key="(row) => row.name" :max-height="300">
+                <template #empty>
+                    <span class="empty">
+                        {{ i18n.getStringDef("table_empty") }}
+                    </span>
+                </template>
+            </NDataTable>
+            <NDivider id="separator" title-placement="left" class="noselect">
+                {{ i18n.getStringDef("result_title") }}
+            </NDivider>
+            <div class="row">
+                <div class="sub-result">
+                    <NList hoverable>
+                        <NListItem class="result-item" v-for="item in result" :key="item.material.id">
+                            <span>{{ item.material.name }}</span>
+                            <span class="count">{{ item.count }}</span>
+                        </NListItem>
+                    </NList>
+                </div>
+                <div class="sub-result">
+                    <NSkeleton text class="loading" v-if="isPlanLoading" :repeat="6"
+                        :style="`max-height: ${0.5 * (windowHeight - separatorHeight - bottomBarHeight - headerHeight)}px;`" />
+                    <NList v-else hoverable>
+                        <NListItem class="result-item" v-for="item in plannedStages" :key="item.name">
+                            <span>{{ item.name }}</span>
+                            <span class="count">{{ item.count }}</span>
+                        </NListItem>
+                    </NList>
+                </div>
+            </div>
         </div>
-        <div class="sub-result">
-            <n-skeleton text class="loading" v-if="isPlanLoading" :repeat="6" :style="`max-height: ${0.5 * (windowHeight - separatorHeight - bottomBarHeight - headerHeight)}px;`" />
-                <n-list v-else hoverable>
-                    <n-list-item class="result-item" v-for="item in plannedStages" :key="item.name">
-                        <span>{{ item.name }}</span>
-                        <span class="count">{{ item.count }}</span>
-                    </n-list-item>
-                </n-list>
-        </div>
-    </div>
-    </div>
-    
-</n-scrollbar>
+
+    </NScrollbar>
 
     <div id="bottom-bar" class="row bottom-bar">
-        <n-select class="new-oper-select" v-model:value="newOperatorName" filterable
+        <NSelect class="new-oper-select" v-model:value="newOperatorName" filterable
             :placeholder="i18n.getStringDef('select_hint')" clearable :options="newOperatorOptions"
-            @search="handleSearch" @update:value="handleNewOperatorValueChange" />
-        <n-tooltip trigger="hover" text v-if="showAddIcon" placement="top">
+            @update:value="handleNewOperatorValueChange" />
+        <NTooltip trigger="hover" text v-if="showAddIcon" placement="top">
             <template #trigger>
-                <n-button class="add-to-profile" @click="addTargetToProfile">
-                    <AddTask />
-                </n-button>
+                <NButton class="add-to-profile" @click="addTargetToProfile">
+                    <NIcon>
+                        <AddTask />
+                    </NIcon>
+                </NButton>
             </template>
             <span>{{ i18n.getStringDef("select_add") }}</span>
-        </n-tooltip>
-        <n-button class="btn-calculate" @click="getPlan">{{
-            i18n.getStringDef("btn_plan")
-        }}</n-button>
+        </NTooltip>
+        <div class="bottom-actions row">
+            <div v-if="hasCheckedOperators">
+                <NButton class="bottom-action" type="error" @click="deleteSelectedOperators">{{
+                    i18n.getStringDef("btn_delete")
+                }}</NButton>
+            </div>
+            <NButton class="bottom-action" @click="getPlan">{{
+                i18n.getStringDef("btn_plan")
+            }}</NButton>
+        </div>
+
     </div>
 </template>
 
@@ -474,9 +502,13 @@ function getPlan() {
     margin-left: 10px;
 }
 
-.btn-calculate {
+.bottom-actions {
     margin-left: auto;
     margin-right: 10px;
+}
+
+.bottom-action {
+    margin-left: 10px;
 }
 
 .bottom-bar {

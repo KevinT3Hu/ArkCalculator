@@ -23,7 +23,6 @@ pub struct Operator{
 impl Operator{
     pub(crate) fn new(char_json:&Value) -> Self{
         let name = char_json.get("name").unwrap().as_str().unwrap().to_string();
-        println!("Parsing {}",name);
         let rarity = char_json.get("rarity").unwrap().as_u64().unwrap() as u8;
         let profession = char_json.get("profession").unwrap().as_str().unwrap().parse().unwrap();
         let evolve_cost_1 = Self::parse_evolve_cost(char_json.get("evolve_cost_1").unwrap());

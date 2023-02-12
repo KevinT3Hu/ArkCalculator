@@ -2,6 +2,7 @@ const strings:{[key:string]:{[key:string]:string}}={
     "en":{
         "app_name":"Arknights Operator Cost Calculator",
         "head":"ArkCalculator",
+        "no_profile":"No profile",
         "table_head_lv":"Level",
         "table_head_name":"Name",
         "table_head_rarity":"Rarity",
@@ -19,6 +20,7 @@ const strings:{[key:string]:{[key:string]:string}}={
         "tooltip_add_profile":"Add a new profile",
         "select_hint":"Select an operator to add",
         "select_add":"Click to add",
+        "btn_delete":"Delete selected",
         "btn_calculate":"Calculate",
         "btn_plan":"Plan Stages",
         "result_title":"Result",
@@ -28,6 +30,7 @@ const strings:{[key:string]:{[key:string]:string}}={
     },
     "zh-CN":{
         "app_name":"明日方舟干员培养计算器",
+        "no_profile":"没有配置",
         "table_head_lv":"等级",
         "table_head_name":"干员名",
         "table_head_rarity":"稀有度",
@@ -45,6 +48,7 @@ const strings:{[key:string]:{[key:string]:string}}={
         "tooltip_add_profile":"添加新的配置",
         "select_hint":"选择添加一个干员",
         "select_add":"添加",
+        "btn_delete":"删除选中",
         "btn_calculate":"计算",
         "btn_plan":"计算刷关计划",
         "result_title":"结果",

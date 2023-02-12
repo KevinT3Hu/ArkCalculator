@@ -17,17 +17,6 @@
         "all": false,
         "open": true
       },
-      "fs": {
-        "all": true,
-        "scope": [
-          "$APP/profiles",
-          "$APP/profiles/*",
-          "$APP/config.json"
-        ]
-      },
-      "path": {
-        "all": true
-      },
       "window": {
         "all": false,
         "center": false,
